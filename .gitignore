@@ -1,2 +1,4 @@
 Master_env/
-
+env/
+__pycache__/
+*.dll
