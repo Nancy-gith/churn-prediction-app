@@ -131,7 +131,54 @@ try:
     
     st.success(f"✅ Loaded {len(df)} days of historical data")
     
-    # Historical data tabs
+    # Calculate 30-day average for comparison
+    avg_temp_30days = df['tavg'].mean() if 'tavg' in df.columns else None
+    
+    # Show comparison between real-time and average
+    st.markdown("### 📊 Temperature Comparison: Now vs. 30-Day Average")
+    
+    comp_col1, comp_col2, comp_col3 = st.columns(3)
+    
+    with comp_col1:
+        st.markdown("""
+        <div style='background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 100%); 
+                    padding: 20px; border-radius: 15px; text-align: center;'>
+            <h4 style='margin: 0; color: white; opacity: 0.9;'>🔴 NOW (Real-Time)</h4>
+            <h1 style='margin: 10px 0; color: white; font-size: 48px;'>{:.1f}°C</h1>
+            <p style='margin: 0; color: white; opacity: 0.8;'>Live API data</p>
+        </div>
+        """.format(realtime['temperature']), unsafe_allow_html=True)
+    
+    with comp_col2:
+        if avg_temp_30days:
+            st.markdown("""
+            <div style='background: linear-gradient(135deg, #4ECDC4 0%, #6ED9D0 100%); 
+                        padding: 20px; border-radius: 15px; text-align: center;'>
+                <h4 style='margin: 0; color: white; opacity: 0.9;'>📊 30-DAY AVERAGE</h4>
+                <h1 style='margin: 10px 0; color: white; font-size: 48px;'>{:.1f}°C</h1>
+                <p style='margin: 0; color: white; opacity: 0.8;'>Historical mean</p>
+            </div>
+            """.format(avg_temp_30days), unsafe_allow_html=True)
+    
+    with comp_col3:
+        if avg_temp_30days:
+            difference = realtime['temperature'] - avg_temp_30days
+            is_hotter = difference > 0
+            color = '#FF6B6B' if is_hotter else '#4ECDC4'
+            arrow = '📈' if is_hotter else '📉'
+            comparison = 'HOTTER' if is_hotter else 'COOLER'
+            
+            st.markdown(f"""
+            <div style='background: linear-gradient(135deg, {color} 0%, rgba(255,255,255,0.2) 100%); 
+                        padding: 20px; border-radius: 15px; text-align: center; border: 2px solid {color};'>
+                <h4 style='margin: 0; opacity: 0.9;'>{arrow} DIFFERENCE</h4>
+                <h1 style='margin: 10px 0; font-size: 48px;'>{difference:+.1f}°C</h1>
+                <p style='margin: 0; opacity: 0.8; font-weight: bold;'>{comparison} than average</p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+
     tab1, tab2, tab3 = st.tabs(["📈 Temperature Trends", "🌧️ Precipitation", "💨 Wind & Pressure"])
     
     with tab1:
