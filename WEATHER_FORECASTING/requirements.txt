@@ -1,0 +1,16 @@
+streamlit
+pandas
+numpy
+plotly
+meteostat
+prophet
+xgboost
+scikit-learn
+requests
+joblib
+pyyaml
+python-dotenv
+geopy
+# Using standard tensorflow for now. 
+# For deployment, we might need to be careful with slug size, but we'll cross that bridge later.
+tensorflow
