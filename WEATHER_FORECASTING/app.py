@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+st.caption("🚀 Version test – Feb 7")
+
+
 # Page configuration
 st.set_page_config(
     page_title="Weather Forecast ML Lab",

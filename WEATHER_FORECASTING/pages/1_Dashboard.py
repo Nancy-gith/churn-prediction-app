@@ -28,6 +28,38 @@ st.markdown("""
         border-radius: 10px;
         border: 1px solid rgba(255, 255, 255, 0.1);
     }
+    
+    /* Weather Icon Animations */
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    @keyframes drift {
+        0% { transform: translateX(0px); }
+        50% { transform: translateX(8px); }
+        100% { transform: translateX(0px); }
+    }
+    @keyframes rain {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(5px); }
+        100% { transform: translateY(0px); }
+    }
+    @keyframes flash {
+        0%, 90%, 100% { opacity: 1; }
+        92%, 98% { opacity: 0.3; }
+    }
+
+    .sun-motion { display: inline-block; animation: spin 10s linear infinite; }
+    .moon-motion { display: inline-block; animation: pulse 3s ease-in-out infinite; }
+    .cloud-motion { display: inline-block; animation: drift 4s ease-in-out infinite; }
+    .rain-motion { display: inline-block; animation: rain 1.5s ease-in-out infinite; }
+    .thunder-motion { display: inline-block; animation: flash 2s infinite; }
+    .snow-motion { display: inline-block; animation: spin 5s linear infinite; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -81,7 +113,11 @@ try:
         city_info = WeatherDataLoader.get_city_info(selected_city)
     
     # Display real-time weather in a beautiful card
-    st.markdown("## 🌡️ Current Weather")
+    st.markdown("## 🌡️ Current Weather (API)")
+    
+    # Debug: Show data source
+    if 'data_source' in realtime:
+        st.caption(f"📡 Source: {realtime['data_source']}")
     
     col1, col2, col3, col4, col5 = st.columns([2, 1.5, 1.5, 1.5, 1.5])
     
@@ -126,8 +162,13 @@ try:
     st.markdown("---")
     
     # Fetch historical data (30 days)
+    st.markdown("## 📊 Historical Data (Meteostat)")
     with st.spinner("Loading 30-day historical data..."):
         df = loader.fetch_historical_data(selected_city, days=30)
+    
+    # Debug: Show Meteostat source
+    meteostat_source = df.attrs.get('meteostat_source', 'Unknown source')
+    st.caption(f"📡 Source: {meteostat_source}")
     
     st.success(f"✅ Loaded {len(df)} days of historical data")
     

@@ -219,17 +219,18 @@ class WeatherDataLoader:
         
         raise ValueError(f"City '{city_name}' not found in database")
     
-    @st.cache_data(ttl=1800)  # Cache for 30 minutes
-    def get_realtime_weather(_self, city_name: str) -> dict:
+    # NO CACHING - Always fetch fresh data for accuracy
+    def get_realtime_weather(self, city_name: str) -> dict:
         """
-        Fetch real-time weather from OpenWeatherMap.
+        Fetch real-time weather from OpenWeatherMap API.
+        Uses main['temp'] for actual temperature (NOT feels_like).
         
         Returns:
-            dict: Current weather data with icon, temperature, description, etc.
+            dict: Current weather data with temperature, description, data_source, etc.
         """
-        if not _self.api_key or _self.api_key == 'your_api_key_here_get_from_openweathermap_org':
+        if not self.api_key or self.api_key == 'your_api_key_here_get_from_openweathermap_org':
             # Return mock data if no API key
-            return _self._get_mock_weather(city_name)
+            return self._get_mock_weather(city_name)
         
         try:
             city_info = WeatherDataLoader.get_city_info(city_name)
@@ -238,16 +239,17 @@ class WeatherDataLoader:
             params = {
                 'lat': city_info['lat'],
                 'lon': city_info['lon'],
-                'appid': _self.api_key,
-                'units': 'metric'
+                'appid': self.api_key,
+                'units': 'metric'  # Celsius
             }
             
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
             
+            # Use main['temp'] for actual temperature (NOT feels_like)
             return {
-                'temperature': round(data['main']['temp'], 1),
+                'temperature': round(data['main']['temp'], 1),  # Actual temperature
                 'feels_like': round(data['main']['feels_like'], 1),
                 'humidity': data['main']['humidity'],
                 'pressure': data['main']['pressure'],
@@ -257,11 +259,12 @@ class WeatherDataLoader:
                 'icon_url': f"http://openweathermap.org/img/wn/{data['weather'][0]['icon']}@2x.png",
                 'clouds': data['clouds']['all'],
                 'visibility': data.get('visibility', 10000) / 1000,  # Convert to km
-                'timestamp': datetime.fromtimestamp(data['dt'])
+                'timestamp': datetime.fromtimestamp(data['dt']),
+                'data_source': f"OpenWeatherMap API ({city_info['lat']:.2f}, {city_info['lon']:.2f})"
             }
         except Exception as e:
-            st.warning(f"Could not fetch real-time data: {str(e)}. Using historical average.")
-            return _self._get_mock_weather(city_name)
+            st.warning(f"Could not fetch real-time data: {str(e)}. Using mock data.")
+            return self._get_mock_weather(city_name)
     
     def _get_mock_weather(self, city_name: str) -> dict:
         """Fallback mock weather data when API is unavailable."""
@@ -277,43 +280,79 @@ class WeatherDataLoader:
             'icon_url': 'http://openweathermap.org/img/wn/01d@2x.png',
             'clouds': random.randint(0, 50),
             'visibility': round(random.uniform(5, 10), 1),
-            'timestamp': datetime.now()
+            'timestamp': datetime.now(),
+            'data_source': 'Mock Data (No API Key)'
         }
     
-    @st.cache_data(ttl=86400)  # Cache for 24 hours
-    def fetch_historical_data(_self, city_name: str, days: int = 30) -> pd.DataFrame:
+    # NO CACHING on historical data to ensure fresh data
+    def fetch_historical_data(self, city_name: str, days: int = 30) -> pd.DataFrame:
         """
-        Fetch lightweight historical data (default 30 days).
+        Fetch historical data from Meteostat (default 30 days).
+        Falls back to Delhi if city has no data.
         
         Parameters:
             city_name (str): Name of the city
             days (int): Number of days to fetch (default 30)
         
         Returns:
-            pd.DataFrame: Historical weather data
+            pd.DataFrame: Historical weather data with 'meteostat_source' attribute
         """
-        # Check cache
-        cache_file = os.path.join(_self.data_dir, f"{city_name.lower().replace(' ', '_')}_30days.csv")
+        # Check file cache (still useful for offline)
+        cache_file = os.path.join(self.data_dir, f"{city_name.lower().replace(' ', '_')}_30days.csv")
         
         if os.path.exists(cache_file):
             file_age = datetime.now() - datetime.fromtimestamp(os.path.getmtime(cache_file))
-            if file_age.days < _self.cache_days:
+            if file_age.days < self.cache_days:
                 df = pd.read_csv(cache_file, parse_dates=['date'])
                 df.set_index('date', inplace=True)
+                df.attrs['meteostat_source'] = f"File cache: {city_name}"
                 return df
         
         # Fetch fresh data
         city_info = WeatherDataLoader.get_city_info(city_name)
+        original_city = city_name
         
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         
+        # Try fetching data with increasing search radius
         location = Point(city_info['lat'], city_info['lon'])
+        meteostat_source = f"Meteostat: {city_name} ({city_info['lat']:.2f}, {city_info['lon']:.2f})"
+        
+        # First attempt: Default radius
         data = Daily(location, start_date, end_date)
         df = data.fetch()
         
+        # Second attempt: Expand radius to find nearby stations
         if df.empty:
-            raise ValueError(f"No historical data available for {city_name}")
+            for lat_offset in [0.5, -0.5, 1.0, -1.0]:
+                for lon_offset in [0.5, -0.5, 1.0, -1.0]:
+                    nearby_location = Point(
+                        city_info['lat'] + lat_offset,
+                        city_info['lon'] + lon_offset
+                    )
+                    data = Daily(nearby_location, start_date, end_date)
+                    df = data.fetch()
+                    if not df.empty:
+                        meteostat_source = f"Meteostat: Nearby station ({city_info['lat'] + lat_offset:.2f}, {city_info['lon'] + lon_offset:.2f})"
+                        break
+                if not df.empty:
+                    break
+        
+        # Third attempt: FALLBACK TO DELHI if still no data
+        if df.empty:
+            st.warning(f"⚠️ No Meteostat data for {city_name}. Using Delhi as fallback.")
+            delhi_info = WeatherDataLoader.get_city_info('Delhi')
+            delhi_location = Point(delhi_info['lat'], delhi_info['lon'])
+            data = Daily(delhi_location, start_date, end_date)
+            df = data.fetch()
+            meteostat_source = f"Meteostat: Delhi fallback (28.70, 77.10)"
+            
+            # If even Delhi fails, generate synthetic
+            if df.empty:
+                st.warning(f"⚠️ Meteostat unavailable. Using estimated data.")
+                df = self._generate_synthetic_data(city_name, start_date, end_date)
+                meteostat_source = f"Synthetic data (estimated for {city_name})"
         
         # Save to cache
         df.reset_index(inplace=True)
@@ -321,32 +360,175 @@ class WeatherDataLoader:
         df.to_csv(cache_file, index=False)
         
         df.set_index('date', inplace=True)
+        df.attrs['meteostat_source'] = meteostat_source
         return df
+    
+    def _generate_synthetic_data(self, city_name: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+        """
+        Generate realistic synthetic weather data for cities without weather stations.
+        Based on regional climate patterns, elevation, and seasons.
+        """
+        import random
+        import numpy as np
+        
+        city_info = WeatherDataLoader.get_city_info(city_name)
+        lat = city_info['lat']
+        city_key = city_name.lower().replace(' ', '')
+        
+        # Hill stations and elevated cities (much cooler than plains)
+        hill_stations = {
+            'shimla', 'manali', 'kullu', 'dalhousie', 'dharamshala', 'mcleodganj',
+            'dehradun', 'mussoorie', 'nainital', 'almora', 'ranikhet',
+            'ooty', 'kodaikanal', 'munnar', 'darjeeling', 'gangtok',
+            'shillong', 'cherrapunji', 'mawsynram', 'tawang', 'aizawl',
+            'mahabaleshwar', 'lonavala', 'panchgani', 'coorg', 'wayanad',
+            'gulmarg', 'pahalgam', 'sonamarg', 'leh', 'kargil',
+            'spitivalley', 'keylong', 'auli', 'kedarnath', 'badrinath',
+            'sandakphu', 'yumthangvalley'
+        }
+        
+        # Coastal cities (moderate temperature, high humidity)
+        coastal_cities = {
+            'mumbai', 'goa', 'kochi', 'thiruvananthapuram', 'kozhikode',
+            'mangalore', 'udupi', 'karwar', 'ratnagiri', 'alibag',
+            'chennai', 'visakhapatnam', 'puducherry', 'mahabalipuram',
+            'portblair', 'panjim', 'vasco', 'margao'
+        }
+        
+        # Desert/hot regions
+        hot_dry_cities = {
+            'jaisalmer', 'bikaner', 'jodhpur', 'ajmer', 'udaipur',
+            'ahmedabad', 'rajkot', 'surat', 'vadodara'
+        }
+        
+        # Determine climate zone
+        if city_key in hill_stations or 'hill' in city_key or 'ganj' in city_key:
+            # Hill stations: Cool year-round
+            if lat > 32:  # High altitude (Leh, Kargil)
+                base_temp = 10
+                temp_variation = 12
+            elif lat > 28:  # Medium altitude (Shimla, Dehradun)
+                base_temp = 18
+                temp_variation = 10
+            else:  # Southern hills (Ooty, Munnar)
+                base_temp = 20
+                temp_variation = 6
+        elif city_key in coastal_cities:
+            # Coastal: Moderate, less variation
+            base_temp = 28
+            temp_variation = 4
+        elif city_key in hot_dry_cities:
+            # Desert/hot: Very hot in summer
+            base_temp = 32
+            temp_variation = 14
+        else:
+            # Regular cities by latitude
+            if lat > 30:  # Northern regions
+                base_temp = 15
+                temp_variation = 15
+            elif lat > 25:  # Northern plains
+                base_temp = 25
+                temp_variation = 12
+            elif lat > 20:  # Central India
+                base_temp = 28
+                temp_variation = 8
+            elif lat > 15:  # South Central
+                base_temp = 27
+                temp_variation = 6
+            else:  # Deep South
+                base_temp = 28
+                temp_variation = 5
+        
+        # Generate dates
+        dates = pd.date_range(start=start_date, end=end_date, freq='D')
+        num_days = len(dates)
+        
+        # Generate realistic temperature with seasonal variation
+        day_of_year = np.array([d.timetuple().tm_yday for d in dates])
+        
+        # Seasonal cycle (peaks in summer around day 150-180)
+        seasonal_factor = np.sin(2 * np.pi * (day_of_year - 80) / 365)
+        
+        # Base temperature with seasonality
+        tavg = base_temp + seasonal_factor * temp_variation + np.random.normal(0, 2, num_days)
+        tmax = tavg + np.random.uniform(3, 7, num_days)
+        tmin = tavg - np.random.uniform(3, 7, num_days)
+        
+        # Generate precipitation (monsoon-aware)
+        month = np.array([d.month for d in dates])
+        
+        # Different monsoon patterns
+        if city_key in ['cherrapunji', 'mawsynram']:  # Wettest places
+            monsoon_factor = np.where((month >= 6) & (month <= 9), 3.0, 0.5)
+        elif city_key in coastal_cities or lat < 20:  # Coastal/South
+            monsoon_factor = np.where((month >= 6) & (month <= 9), 1.5, 0.3)
+        else:  # Regular cities
+            monsoon_factor = np.where((month >= 6) & (month <= 9), 1.0, 0.2)
+        
+        prcp = np.random.exponential(5, num_days) * monsoon_factor
+        prcp = np.clip(prcp, 0, 150)  # Realistic limits
+        
+        # Generate other weather parameters
+        wspd = np.random.uniform(5, 25, num_days)
+        
+        # Pressure varies with elevation (approximate)
+        if city_key in hill_stations:
+            base_pressure = 950  # Lower at elevation
+        else:
+            base_pressure = 1013  # Sea level
+        pres = np.random.normal(base_pressure, 5, num_days)
+        
+        # Create DataFrame
+        df = pd.DataFrame({
+            'time': dates,
+            'tavg': tavg.round(1),
+            'tmin': tmin.round(1),
+            'tmax': tmax.round(1),
+            'prcp': prcp.round(1),
+            'wspd': wspd.round(1),
+            'pres': pres.round(1)
+        })
+        
+        df.set_index('time', inplace=True)
+        return df
+
     
     @staticmethod
     def get_weather_emoji(icon_code: str) -> str:
-        """Convert OpenWeatherMap icon code to emoji."""
-        emoji_map = {
-            '01d': '☀️',  # Clear sky day
-            '01n': '🌙',  # Clear sky night
-            '02d': '⛅',  # Few clouds day
-            '02n': '☁️',  # Few clouds night
-            '03d': '☁️',  # Scattered clouds
-            '03n': '☁️',
-            '04d': '☁️',  # Broken clouds
-            '04n': '☁️',
-            '09d': '🌧️',  # Shower rain
-            '09n': '🌧️',
-            '10d': '🌦️',  # Rain day
-            '10n': '🌧️',  # Rain night
-            '11d': '⛈️',  # Thunderstorm
-            '11n': '⛈️',
-            '13d': '❄️',  # Snow
-            '13n': '❄️',
-            '50d': '🌫️',  # Mist
-            '50n': '🌫️',
+        """
+        Map OpenWeatherMap icon codes to animated emojis.
+        
+        Args:
+            icon_code (str): Icon code from API (e.g. '01d')
+            
+        Returns:
+            str: HTML string with animated emoji
+        """
+        # Mapping base icons to (emoji, animation_class)
+        icon_map = {
+            '01d': ('☀️', 'sun-motion'),        # Clear sun
+            '01n': ('🌙', 'moon-motion'),       # Clear moon (night)
+            '02d': ('🌤️', 'cloud-motion'),      # Partly cloudy day
+            '01n': ('🌙', 'moon-motion'),       # Night moon priority
+            '02n': ('🌙', 'moon-motion'),       # Partly cloudy night -> Moon (user request)
+            '03d': ('☁️', 'cloud-motion'),       # Scattered clouds
+            '03n': ('☁️', 'cloud-motion'),
+            '04d': ('☁️', 'cloud-motion'),       # Broken clouds
+            '04n': ('☁️', 'cloud-motion'),
+            '09d': ('🌧️', 'rain-motion'),        # Shower rain
+            '09n': ('🌧️', 'rain-motion'),
+            '10d': ('🌧️', 'rain-motion'),        # Rain (rain with clouds)
+            '10n': ('🌧️', 'rain-motion'),
+            '11d': ('⛈️', 'thunder-motion'),     # Thunderstorm (cloud with lightning)
+            '11n': ('⛈️', 'thunder-motion'),
+            '13d': ('❄️', 'snow-motion'),        # Snowy
+            '13n': ('❄️', 'snow-motion'),
+            '50d': ('🌫️', 'cloud-motion'),       # Mist/Haze
+            '50n': ('🌫️', 'cloud-motion'),
         }
-        return emoji_map.get(icon_code, '🌤️')
+        
+        emoji, animation_class = icon_map.get(icon_code, ('🌤️', 'cloud-motion'))
+        return f'<span class="{animation_class}">{emoji}</span>'
 
 
 # Quick test
