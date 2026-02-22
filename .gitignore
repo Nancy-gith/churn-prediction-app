@@ -1,6 +1,9 @@
-# Python
+# Python virtual environments
 env/
 venv/
+Master_env/
+
+# Python cache
 __pycache__/
 *.pyc
 
@@ -13,3 +16,8 @@ dist/
 
 # OS files
 .DS_Store
+
+# Trained ML models
+*.joblib
+*.pkl
+backend/saved_models/
