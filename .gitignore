@@ -9,9 +9,10 @@ __pycache__/
 *.pyc
 
 # ML training artifacts
-backend/catboost_info/
-backend/saved_models/
+**/catboost_info/
+**/saved_models/
 *.joblib
+*.keras
 
 # Node
 node_modules/
