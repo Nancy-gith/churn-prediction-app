@@ -1,23 +1,19 @@
-# Python virtual environments
+# Virtual environments
 env/
 venv/
 Master_env/
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
 
-# Node / React
+# ML models
+*.joblib
+*.pkl
+
+# Node
 node_modules/
 dist/
 
-# Environment variables
+# Env files
 .env
-
-# OS files
-.DS_Store
-
-# Trained ML models
-*.joblib
-*.pkl
-backend/saved_models/
