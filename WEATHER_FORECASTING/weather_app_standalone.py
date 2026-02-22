@@ -18,6 +18,7 @@ Version: 1.0
 # IMPORTS
 # ============================================================================
 import os
+import streamlit as st
 import sys
 
 # Fix Windows console encoding for Unicode characters
@@ -44,7 +45,14 @@ load_dotenv()
 # ============================================================================
 
 # API Configuration
-OPENWEATHERMAP_API_KEY = os.getenv('OPENWEATHERMAP_API_KEY', '')
+# API Configuration - Using Streamlit secrets (renamed to OPENWEATHER_API_KEY)
+try:
+    OPENWEATHER_API_KEY = st.secrets["OPENWEATHER_API_KEY"]
+except (KeyError, AttributeError, FileNotFoundError):
+    OPENWEATHER_API_KEY = os.getenv('OPENWEATHERMAP_API_KEY', '') or os.getenv('OPENWEATHER_API_KEY', '')
+
+# Maintain backwards compatibility with the variable name used in the rest of the script
+OPENWEATHERMAP_API_KEY = OPENWEATHER_API_KEY
 
 # API Endpoints
 CURRENT_WEATHER_URL = "https://api.openweathermap.org/data/2.5/weather"

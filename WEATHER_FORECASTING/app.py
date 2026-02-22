@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.caption("🚀 Version test – Feb 7")
 
 
 # Page configuration

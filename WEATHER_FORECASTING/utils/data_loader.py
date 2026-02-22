@@ -200,7 +200,12 @@ class WeatherDataLoader:
         """Initialize with 1-day cache for lightweight operation."""
         self.data_dir = data_dir
         self.cache_days = cache_days
-        self.api_key = os.getenv('OPENWEATHERMAP_API_KEY', '')
+        # Use Streamlit secrets for API key (renamed to OPENWEATHER_API_KEY per request)
+        try:
+            self.api_key = st.secrets["OPENWEATHER_API_KEY"]
+        except (KeyError, AttributeError, FileNotFoundError):
+            # Fallback to env var if secrets not found (useful for local development)
+            self.api_key = os.getenv('OPENWEATHERMAP_API_KEY', '') or os.getenv('OPENWEATHER_API_KEY', '')
         os.makedirs(data_dir, exist_ok=True)
     
     @staticmethod
