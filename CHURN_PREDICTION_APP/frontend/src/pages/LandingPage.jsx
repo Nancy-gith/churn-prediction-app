@@ -68,7 +68,7 @@ export default function LandingPage() {
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold mb-6"
                     style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}>
                     <Database size={14} />
-                    POWERED BY 6 ML MODELS
+                    POWERED BY 3 ML MODELS
                 </div>
                 <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-4"
                     style={{ background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>

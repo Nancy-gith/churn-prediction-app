@@ -1,15 +1,17 @@
 # Virtual environments
 env/
 venv/
+backend/venv/
 Master_env/
 
 # Python
 __pycache__/
 *.pyc
 
-# ML models
+# ML training artifacts
+backend/catboost_info/
+backend/saved_models/
 *.joblib
-*.pkl
 
 # Node
 node_modules/
@@ -17,3 +19,16 @@ dist/
 
 # Env files
 .env
+.env.local
+.env.production.local
+
+# Vercel
+.vercel/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

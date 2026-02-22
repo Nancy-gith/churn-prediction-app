@@ -135,7 +135,7 @@ export default function PredictPage() {
                                 value={selectedModel}
                                 onChange={(e) => setSelectedModel(e.target.value)}
                             >
-                                {['logistic_regression', 'random_forest', 'xgboost', 'lightgbm', 'catboost', 'neural_network'].map(m => (
+                                {['xgboost', 'lightgbm', 'catboost'].map(m => (
                                     <option key={m} value={m}>
                                         {m.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                                         {models?.best_model === m ? ' ⭐ (Best)' : ''}
@@ -240,7 +240,7 @@ export default function PredictPage() {
                                     {prediction.prediction}
                                 </div>
                                 <div className={`badge ${prediction.risk_level === 'low' ? 'badge-success' :
-                                        prediction.risk_level === 'medium' ? 'badge-warning' : 'badge-danger'
+                                    prediction.risk_level === 'medium' ? 'badge-warning' : 'badge-danger'
                                     }`}>
                                     {prediction.risk_label}
                                 </div>

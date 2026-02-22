@@ -5,7 +5,7 @@
 **Goal:** Build a production-grade web app that predicts telecom customer churn using ML models, with an interactive frontend for data exploration, model training, and individual predictions.
 
 **Tech Stack:**
-- **Backend:** Python 3.10+, FastAPI, scikit-learn, XGBoost, LightGBM, CatBoost, TensorFlow/Keras
+- **Backend:** Python 3.10+, FastAPI, scikit-learn, XGBoost, LightGBM, CatBoost
 - **Frontend:** React 18, TailwindCSS, Recharts, Framer Motion
 - **Data:** IBM Telco Customer Churn dataset (Kaggle)
 
@@ -95,8 +95,8 @@ CHURN_PREDICTION_APP/
 **Why not Target Encoding?** Risk of data leakage if not done carefully with cross-validation folds.
 
 ### 3.5 Feature Scaling
-- **StandardScaler** for Logistic Regression and Neural Network (algorithms sensitive to feature magnitude).
-- Tree-based models (RF, XGBoost, LightGBM, CatBoost) do NOT need scaling — they split on feature values, not magnitudes.
+- **StandardScaler** for numeric features to maintain consistency across the pipeline.
+- Note: Tree-based models (XGBoost, LightGBM, CatBoost) do NOT strictly need scaling — they split on feature values, not magnitudes — but we apply it uniformly for a clean pipeline.
 
 ### 3.6 Class Imbalance Handling
 - **SMOTE (Synthetic Minority Over-sampling Technique)** on training data only.
@@ -106,37 +106,24 @@ CHURN_PREDICTION_APP/
 
 ---
 
-## 4. ML Models — Why Each One
+## 4. ML Models — Why These 3 Gradient Boosting Models
 
-### 4.1 Logistic Regression (Baseline)
-- **Why:** Industry standard baseline. Interpretable coefficients tell you exactly how each feature affects churn probability.
-- **How it works:** Fits a linear boundary in feature space, outputs probabilities via sigmoid function.
-- **In churn context:** "For every $10 increase in monthly charges, churn probability increases by X%."
+We focus on the **top 3 gradient boosting algorithms** — the gold standard for tabular/structured data in production.
 
-### 4.2 Random Forest
-- **Why:** Handles non-linear relationships, resistant to overfitting via bagging.
-- **How it works:** Ensemble of decision trees, each trained on a random subset of features and data. Final prediction = majority vote.
-- **In churn context:** Captures complex interactions (e.g., high charges + month-to-month contract = high churn risk).
-
-### 4.3 XGBoost
+### 4.1 XGBoost
 - **Why:** Gold standard for structured/tabular data competitions. Sequential boosting corrects previous trees' errors.
 - **How it works:** Gradient boosting — each new tree focuses on the residual errors of the ensemble so far.
 - **In churn context:** Excellent at finding the small signals that differentiate churners from non-churners.
 
-### 4.4 LightGBM
+### 4.2 LightGBM
 - **Why:** Faster than XGBoost for large datasets, uses histogram-based splits.
 - **How it works:** Similar to XGBoost but grows trees leaf-wise instead of level-wise → deeper, more accurate trees.
 - **In churn context:** Production-ready — handles categoricals natively, fast inference.
 
-### 4.5 CatBoost
+### 4.3 CatBoost
 - **Why:** Best native handling of categorical features. No need for manual encoding.
 - **How it works:** Uses ordered boosting + symmetric trees. Prevents target leakage during training.
 - **In churn context:** Contract type, payment method, internet service are all categoricals — CatBoost handles them optimally.
-
-### 4.6 Neural Network (Keras)
-- **Why:** Can learn arbitrarily complex patterns. Industry interest in deep learning for tabular data.
-- **How it works:** Multi-layer perceptron with ReLU activations and sigmoid output. Dropout for regularization.
-- **In churn context:** Captures non-linear feature interactions that linear models miss, but may overfit on small datasets.
 
 ---
 
@@ -211,6 +198,5 @@ CHURN_PREDICTION_APP/
 2. **SMOTE on test data:** This is a CRITICAL mistake. SMOTE must only be applied to training data.
 3. **TotalCharges whitespace:** IBM dataset has " " (space) in TotalCharges for new customers with 0 tenure. Must handle explicitly.
 4. **CatBoost categorical handling:** Pass cat_features indices directly, don't one-hot encode for CatBoost.
-5. **SHAP with large models:** Use TreeExplainer for tree models (fast), KernelExplainer for neural net (slow — sample background data).
-6. **Neural network on small data:** High risk of overfitting. Use early stopping + dropout.
-7. **API timeout on model training:** Training 6 models can take 30-60 seconds. Use async endpoints or SSE for progress.
+5. **SHAP with large models:** Use TreeExplainer for tree models (fast) — all 3 models support it natively.
+6. **API timeout on model training:** Training 3 models can take 15-30 seconds. Use async endpoints or SSE for progress.

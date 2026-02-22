@@ -1,6 +1,6 @@
 # 🛡️ ChurnGuard AI — Telecom Customer Churn Prediction
 
-> A production-grade, full-stack ML web application that predicts telecom customer churn using 6 industry-standard models with SHAP explainability.
+> A production-grade, full-stack ML web application that predicts telecom customer churn using 3 industry-standard gradient boosting models with SHAP explainability.
 
 ## 🏗️ Architecture
 
@@ -14,7 +14,7 @@ CHURN_PREDICTION_APP/
 │   │   │   ├── data_pipeline.py   # Cleaning, encoding, scaling, SMOTE
 │   │   │   └── eda.py             # EDA chart computations
 │   │   ├── models/
-│   │   │   ├── trainer.py     # 6 ML models + Optuna tuning
+│   │   │   ├── trainer.py     # 3 gradient boosting models + Optuna tuning
 │   │   │   ├── evaluator.py   # Metrics, confusion matrix, ROC
 │   │   │   └── predictor.py   # Single customer prediction
 │   │   ├── services/
@@ -100,7 +100,7 @@ Visit **http://localhost:5173** in your browser.
 - StandardScaler for numeric features
 - SMOTE for class imbalance (applied only to training set)
 
-### 3. EDA Dashboard (6 Charts)
+### 3. EDA Dashboard
 - Churn distribution (donut chart)
 - Churn by Contract Type, Internet Service, Payment Method (grouped bars + churn rate line)
 - Tenure vs Churn (histogram)
@@ -109,16 +109,13 @@ Visit **http://localhost:5173** in your browser.
 - Feature Correlation Heatmap (color-coded matrix)
 
 ### 4. Model Training & Evaluation
-Six models trained and compared:
+Three industry-standard gradient boosting models trained and compared:
 
 | Model | Type | Why for Churn |
 |-------|------|---------------|
-| **Logistic Regression** | Linear baseline | Interpretable, fast, good baseline |
-| **Random Forest** | Ensemble (bagging) | Handles non-linear patterns, robust |
-| **XGBoost** | Gradient boosting | State-of-the-art, handles imbalance |
-| **LightGBM** | Gradient boosting | Fast, memory-efficient, categorical native |
-| **CatBoost** | Gradient boosting | Native categorical support, less tuning |
-| **Neural Network** | Deep learning | Captures complex interactions |
+| **XGBoost** | Gradient boosting | State-of-the-art for tabular data, handles imbalance |
+| **LightGBM** | Gradient boosting | Fast, memory-efficient, native categorical support |
+| **CatBoost** | Gradient boosting | Best categorical handling, reduced overfitting |
 
 **Evaluation Metrics**: Accuracy, Precision, Recall ⭐, F1-Score, ROC-AUC
 - **Recall** is the key metric for churn (we want to catch all churners)
@@ -126,7 +123,7 @@ Six models trained and compared:
 - Overlaid ROC curves
 - SHAP feature importance visualization
 
-**Hyperparameter Tuning**: Optional Optuna Bayesian optimization (20 trials per model)
+**Hyperparameter Tuning**: Optional Optuna Bayesian optimization (30 trials per model)
 
 ### 5. Customer Churn Prediction
 - Form with all customer features
@@ -151,15 +148,21 @@ Optuna uses Bayesian optimization (Tree-structured Parzen Estimator) to explore 
 ## 🌐 Deployment
 
 ### Backend (Render)
-1. Create a `render.yaml` or add as a Web Service
-2. Set build command: `pip install -r requirements.txt`
-3. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+1. Push code to GitHub
+2. Go to [render.com](https://render.com) → New → Web Service
+3. Connect your GitHub repo
+4. **Root Directory**: `CHURN_PREDICTION_APP/backend`
+5. **Build Command**: `pip install -r requirements.txt`
+6. **Start Command**: `gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT`
+7. Add `ALLOWED_ORIGINS` env var with your Vercel frontend URL
 
 ### Frontend (Vercel)
-1. Connect GitHub repo → select `frontend` directory
-2. Build command: `npm run build`
-3. Output: `dist`
-4. Environment variable: `VITE_API_URL=https://your-backend.onrender.com`
+1. Go to [vercel.com](https://vercel.com) → New Project
+2. Import your GitHub repo
+3. **Root Directory**: `CHURN_PREDICTION_APP/frontend`
+4. **Build Command**: `npm run build`
+5. **Output Directory**: `dist`
+6. Add environment variable: `VITE_API_URL=https://your-backend.onrender.com`
 
 ### Environment Variables
 | Variable | Where | Purpose |
@@ -179,7 +182,7 @@ Optuna uses Bayesian optimization (Tree-structured Parzen Estimator) to explore 
 | POST | `/api/clean` | Run cleaning pipeline |
 | GET | `/api/cleaning-report` | Get cleaning report |
 | GET | `/api/eda` | Get EDA chart data |
-| POST | `/api/train` | Train all 6 models |
+| POST | `/api/train` | Train all 3 models |
 | GET | `/api/models` | List available models |
 | GET | `/api/evaluation` | Get evaluation results |
 | GET | `/api/shap/{model}` | Get SHAP importance |

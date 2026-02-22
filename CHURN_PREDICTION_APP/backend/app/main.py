@@ -23,7 +23,7 @@ app = FastAPI(
     title="Telecom Churn Prediction API",
     description=(
         "Production-grade API for predicting telecom customer churn. "
-        "Supports data upload, cleaning, EDA, model training (6 ML models), "
+        "Supports data upload, cleaning, EDA, model training (3 gradient boosting models), "
         "evaluation, SHAP explanations, and individual predictions."
     ),
     version="1.0.0",

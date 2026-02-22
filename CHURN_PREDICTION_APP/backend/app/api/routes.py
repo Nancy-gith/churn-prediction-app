@@ -190,7 +190,7 @@ async def get_eda():
 @router.post("/train")
 async def train_models(request: TrainRequest):
     """
-    Train all 6 ML models on the cleaned dataset.
+    Train all 3 ML models on the cleaned dataset.
 
     Set tune_hyperparameters=true for Optuna optimization
     (takes longer but can improve results by 2-5%).
